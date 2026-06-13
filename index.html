@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>تصميم شقة - 265 م²</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 2rem 1rem;
+      background: #fafafa;
+      font-family: "Tajawal", "Amiri", Arial, sans-serif;
+      font-size: 1rem;
+      text-align: right;
+      direction: rtl;
+    }
+
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500&display=swap');
+
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      color: #263238;
+    }
+
+    #plan-container {
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      overflow: visible; /* لضمان عدم ظهور أشرطة التمرير */
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      border: 1px solid #bdbdbd;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      background: #fff;
+    }
+
+    .room-label {
+      font-weight: 500;
+      font-size: 0.85rem;
+      fill: #000;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      pointer-events: none;
+    }
+
+    .area-text {
+      font-size: 0.75rem;
+      fill: #424242;
+      text-anchor: middle;
+    }
+
+    .entrance-label {
+      font-size: 0.8rem;
+      fill: #37474f;
+      text-anchor: end; /* لأن الاتجاه من اليمين لليسار */
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 1rem 0.5rem; }
+      h1 { font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+  <h1><%= title %></h1>
+  <div id="plan-container">
+    <svg id="apartment-svg" viewBox="0 0 600 350" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <script>
+    // تحميل ملف JSON ديناميكيًا
+    fetch('layout.json')
+      .then(res => res.json())
+      .then(data => renderPlan(data))
+      .catch(err => {
+        console.error('خطأ في تحميل التصميم:', err);
+        document.getElementById('apartment-svg').innerHTML =
+          `<text x="50%" y="50%" text-anchor="middle" font-size="16" fill="red">
+             تعذّر تحميل التصميم
+           </text>`;
+      });
+
+    function renderPlan(plan) {
+      const svg = document.getElementById('apartment-svg');
+      const ns = 'http://www.w3.org/2000/svg';
+
+      // العنوان الكلي
+      const titleEl = document.querySelector('h1');
+      titleEl.textContent = `${plan.title} (${plan.totalArea})`;
+
+      // رسم الغرف
+      plan.rooms.forEach(room => {
+        const [x, y, w, h] = room.coords.map(v => v * plan.scale);
+        const rect = document.createElementNS(ns, 'rect');
+        rect.setAttribute('x', x);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', w);
+        rect.setAttribute('height', h);
+        rect.setAttribute('fill', room.color);
+        rect.setAttribute('stroke', '#78909c');
+        rect.setAttribute('stroke-width', '2');
+        svg.appendChild(rect);
+
+        // التسمية
+        const cx = x + w / 2;
+        const cy = y + h / 3; // أعلى قليلاً
+        const label = room.label || `غرفة ${room.num}`;
+        const labelEl = document.createElementNS(ns, 'text');
+        labelEl.setAttribute('x', cx);
+        labelEl.setAttribute('y', cy);
+        labelEl.classList.add('room-label');
+        labelEl.textContent = label;
+        svg.appendChild(labelEl);
+
+        // المساحة
+        const areaEl = document.createElementNS(ns, 'text');
+        areaEl.setAttribute('x', cx);
+        areaEl.setAttribute('y', cy + 25);
+        areaEl.classList.add('area-text');
+        areaEl.textContent = room.area || `${room.area || w*h/10000} ${plan.units}`;
+        svg.appendChild(areaEl);
+      });
+
+      // المداخل والتعليقات
+      plan.entrances.forEach(ent => {
+        if (ent.label === 'المدخل الرئيسي') {
+          const [dx, dy1, dx2, dy2] = ent.arrow.map(v => v * plan.scale);
+          // سهم بسيط
+          const line = document.createElementNS(ns, 'line');
+          line.setAttribute('x1', 20 * plan.scale);
+          line.setAttribute('y1', 10 * plan.scale);
+          line.setAttribute('x2', 20 * plan.scale + dx2);
+          line.setAttribute('y2', 10 * plan.scale + dy2);
+          line.setAttribute('stroke', '#d32f2f');
+          line.setAttribute('stroke-width', '2');
+          line.setAttribute('marker-end', 'url(#arrow)');
+          svg.appendChild(line);
+
+          const txt = document.createElementNS(ns, 'text');
+          txt.setAttribute('x', 180 * plan.scale); // إلى اليمين قليلاً
+          txt.setAttribute('y', 0 * plan.scale - 5);
+          txt.classList.add('entrance-label');
+          txt.textContent = ent.label;
+          svg.appendChild(txt);
+        }
+      });
+
+      // إضافة رأس السهم
+      const defs = document.createElementNS(ns, 'defs');
+      const marker = document.createElementNS(ns, 'marker');
+      marker.setAttribute('id', 'arrow');
+      marker.setAttribute('viewBox', '0 0 10 10');
+      marker.setAttribute('refX', '8');
+      marker.setAttribute('refY', '5');
+      marker.setAttribute('markerWidth', '6');
+      marker.setAttribute('markerHeight', '6');
+      marker.setAttribute('orient', 'auto');
+      const path = document.createElementNS(ns, 'path');
+      path.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+      path.setAttribute('fill', '#d32f2f');
+      marker.appendChild(path);
+      defs.appendChild(marker);
+      svg.prepend(defs);
+    }
+  </script>
+</body>
+</html>
